@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>草相撲</title>
+<style>
+:root{--bg:#f3eedf;--fg:#26331f;--card:#fffaf0;--line:#cfc4a6;--ac:#3f8f3a;--bad:#b3402e;--mute:#6b7560;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171c14;--fg:#e6ecd8;--card:#222a1d;--line:#3b4733;--ac:#7cc46f;--bad:#e0705c;--mute:#9aa68c}}
+:root[data-theme="dark"]{--bg:#171c14;--fg:#e6ecd8;--card:#222a1d;--line:#3b4733;--ac:#7cc46f;--bad:#e0705c;--mute:#9aa68c}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 "Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif}
+main{max-width:680px;margin:0 auto;padding:16px}
+h1{font:700 34px/1.2 "Hiragino Mincho ProN","Yu Mincho",serif;margin:8px 0;color:var(--ac);letter-spacing:.2em}
+canvas{width:100%;display:block;background:var(--card);border:2px solid var(--line);border-radius:12px;touch-action:none}
+#pad{aspect-ratio:640/260;cursor:crosshair}#arena{aspect-ratio:640/300}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+button,input[type=text]{font:inherit;padding:10px 16px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--fg)}
+button{cursor:pointer;font-weight:700}button:disabled{opacity:.45;cursor:default}
+button.pri{background:var(--ac);border-color:var(--ac);color:var(--bg)}
+input[type=text]{width:7em;text-align:center}
+.stat{font-weight:700;margin:8px 0}.tip,.sub{color:var(--mute);font-size:14px;margin:4px 0}
+.box{border:2px dashed var(--line);border-radius:12px;padding:12px;margin-top:14px}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;font-size:14px}
+.bar{height:14px;background:var(--line);border-radius:7px;overflow:hidden}.bar i{display:block;height:100%;width:100%;background:var(--ac);transition:width .1s}
+.info{min-height:1.6em;font-weight:700;text-align:center;margin:8px 0}
+.tap{width:100%;height:96px;font-size:30px;background:var(--ac);border-color:var(--ac);color:var(--bg);touch-action:manipulation;user-select:none}
+</style></head><body><main>
+<h1>草相撲</h1>
+<section id="draw">
+<p class="sub">オオバコの茎のように、自分の草を一本描いて引っ張り合おう。先に切れたほうが負け！</p>
+<canvas id="pad"></canvas>
+<div class="row"><label>太さ <input id="w" type="range" min="2" max="16" value="6"></label><button id="clr">描き直す</button></div>
+<p id="stat" class="stat"></p>
+<p class="tip">太くてまっすぐ＝丈夫だけど引きは弱い／ギザギザ＝引きが強いけど切れやすい</p>
+<div class="box">
+<button id="cpu" class="pri" disabled>CPUと対戦</button>
+<div class="row"><input id="code" type="text" maxlength="12" aria-label="部屋コード"><button id="net" disabled>オンライン対戦</button></div>
+<p class="tip">同じ部屋コードを入れた2人で対戦できます（ログイン中のメンバー同士）。</p>
+</div></section>
+<section id="match" hidden>
+<div class="bars"><div>あなた<div class="bar"><i id="bm"></i></div></div><div>あいて<div class="bar"><i id="bo"></i></div></div></div>
+<canvas id="arena"></canvas>
+<p id="info" class="info"></p>
+<button id="tap" class="tap" disabled>引く！（スペースキー連打）</button>
+<div class="row"><button id="go" hidden>準備OK</button><button id="back">やめる</button></div>
+</section></main>
+<script>
+const $=s=>document.querySelector(s),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),K=0.11;
+const cv=$('#pad'),cx=cv.getContext('2d'),ar=$('#arena'),ax=ar.getContext('2d'),dpr=Math.min(2,devicePixelRatio||1);
+function fit(c,w,h){c.width=w*dpr;c.height=h*dpr;c.getContext('2d').setTransform(dpr,0,0,dpr,0,0)}
+fit(cv,640,260);fit(ar,640,300);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const S={mode:null,state:'idle'};
+let raw=[],drawing=false,me=null,opp=null,myHp=1,oppHp=1,myTaps=0,oppC=0,sent=0,tension=0,res=null,endAt=0,cd='',readyMe=false,readyOpp=false,room=null,unsubs=[],cpuT=0,sendT=0;
+$('#code').value=Math.random().toString(36).slice(2,6);
+
+function resample(p,s){const o=[p[0]];let l=p[0];for(const q of p){if(Math.hypot(q[0]-l[0],q[1]-l[1])>=s){o.push(q);l=q}}return o}
+function norm(r){let a=1e9,b=1e9,c=-1e9,d=-1e9;for(const[x,y]of r){a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y)}
+ const k=1000/Math.max(c-a,d-b,1),st=Math.ceil(r.length/90),p=[];
+ for(let i=0;i<r.length;i+=st)p.push([Math.round((r[i][0]-a)*k),Math.round((r[i][1]-b)*k)]);
+ const e=r[r.length-1];p.push([Math.round((e[0]-a)*k),Math.round((e[1]-b)*k)]);return p}
+function stats(w,wig,L){const lf=clamp(L/400,.3,1.2);return{hp:Math.round((30+w*6)*(1.3-.6*wig)*(.6+.4*lf)),pw:Math.round(10*(.7+wig*.8+lf*.3)*10)/10}}
+
+function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*640/r.width,(e.clientY-r.top)*260/r.height]}
+function redraw(){cx.clearRect(0,0,640,260);
+ if(!raw.length){cx.fillStyle=css('--mute');cx.font='20px sans-serif';cx.textAlign='center';cx.fillText('ここに草を一本描いてね',320,135);return}
+ cx.strokeStyle=css('--ac');cx.lineWidth=+$('#w').value;cx.lineCap=cx.lineJoin='round';cx.beginPath();raw.forEach((p,i)=>i?cx.lineTo(p[0],p[1]):cx.moveTo(p[0],p[1]));if(raw.length==1)cx.lineTo(raw[0][0]+.1,raw[0][1]);cx.stroke()}
+function stat(m){$('#stat').textContent=m||(me?`耐久 ${me.hp} ／ 引き ${me.pw}`:'まず草を描いてね');$('#cpu').disabled=$('#net').disabled=!me}
+function finishStem(){const r=resample(raw,8);if(r.length<6){me=null;return stat('もう少し長く描いてね')}
+ let L=0,T=0,pa=null;for(let i=1;i<r.length;i++){const dx=r[i][0]-r[i-1][0],dy=r[i][1]-r[i-1][1];L+=Math.hypot(dx,dy);const a=Math.atan2(dy,dx);if(pa!==null){let d=Math.abs(a-pa);if(d>Math.PI)d=2*Math.PI-d;T+=d}pa=a}
+ const wig=clamp(T/(r.length-2)/.8,0,1),w=+$('#w').value;me={p:norm(r),w,wig,...stats(w,wig,L)};stat()}
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);drawing=true;raw=[pos(e)];me=null;redraw();stat()};
+cv.onpointermove=e=>{if(!drawing)return;const p=pos(e),l=raw[raw.length-1];if(Math.hypot(p[0]-l[0],p[1]-l[1])>2){raw.push(p);redraw()}};
+cv.onpointerup=cv.onpointercancel=()=>{if(drawing){drawing=false;finishStem()}};
+$('#w').oninput=()=>{redraw();if(raw.length&&!drawing)finishStem()};
+$('#clr').onclick=()=>{raw=[];me=null;redraw();stat()};
+redraw();stat();
+
+function show(id){['draw','match'].forEach(i=>$('#'+i).hidden=i!==id)}
+const info=t=>$('#info').textContent=t;
+function genCpu(){const wig=Math.random()*.8+.1,w=4+Math.random()*9,a=[];for(let i=0;i<60;i++)a.push([i*16,Math.sin(i/60*(3+wig*10))*wig*120]);
+ return{p:norm(a),w,wig,...stats(w,wig,300+Math.random()*100)}}
+function prepare(){myHp=me.hp;oppHp=opp?opp.hp:1;myTaps=oppC=sent=0;tension=0;res=null;info('')}
+function beginCount(){S.state='count';let n=3;cd='3';const iv=setInterval(()=>{n--;if(n>0)cd=String(n);else{clearInterval(iv);cd='引け！';S.state='fight';startTimers();setTimeout(()=>cd='',700)}},800)}
+function startTimers(){clearInterval(cpuT);clearInterval(sendT);
+ if(S.mode==='cpu')cpuT=setInterval(()=>{if(S.state==='fight')oppHit(Math.random()<.7?1:0)},150);
+ else sendT=setInterval(()=>{if(S.state==='fight'&&room&&myTaps!==sent){sent=myTaps;room.emit('tap',{c:myTaps}).catch(()=>{})}},120)}
+function oppHit(d){myHp-=d*opp.pw*K;tension=Math.min(1,tension+d*.15)}
+function myTap(){if(S.state!=='fight')return;myTaps++;oppHp-=me.pw*K;tension=Math.min(1,tension+.15)}
+function finish(r){S.state='done';res=r;endAt=performance.now();clearInterval(cpuT);clearInterval(sendT);msg();$('#go').hidden=false;$('#go').textContent='もう一回';$('#tap').disabled=true}
+function msg(){info(res===true?'勝ち！ 相手の草がブチッと切れた':res===false?'負け… あなたの草が切れた':'あいこ！ 両方ブチッ')}
+
+function tick(){tension*=.94;
+ if(S.state==='fight'){if(myHp<=0){if(S.mode==='net')room.emit('broke',{}).catch(()=>{});finish(false)}else if(S.mode==='cpu'&&oppHp<=0)finish(true)}
+ $('#tap').disabled=S.state!=='fight';
+ if(me)$('#bm').style.width=clamp(myHp/me.hp,0,1)*100+'%';$('#bo').style.width=(opp?clamp(oppHp/opp.hp,0,1)*100:100)+'%';
+ drawArena();requestAnimationFrame(tick)}
+function stem(s,mir,f,dx,broken){let mx=1,my=1;for(const[x,y]of s.p){mx=Math.max(mx,x);my=Math.max(my,y)}
+ const bx=mir?340:20,bw=280,by=30,bh=220,k=Math.min(bw/mx,bh/my),ox=bx+(bw-mx*k)/2+dx,oy=by+(bh-my*k)/2;
+ const P=s.p.map(([x,y])=>[ox+(mir?mx-x:x)*k,oy+y*k]);f=clamp(f,0,1);
+ ax.lineCap=ax.lineJoin='round';ax.lineWidth=clamp(s.w*.8,3,12);ax.strokeStyle=`hsl(${35+85*f} 55% 42%)`;
+ const path=(a,ex,ey)=>{ax.beginPath();a.forEach((p,i)=>i?ax.lineTo(p[0]+ex,p[1]+ey):ax.moveTo(p[0]+ex,p[1]+ey));ax.stroke()};
+ if(broken){const e=clamp((performance.now()-endAt)/300,0,1),h=P.length>>1,q=mir?1:-1;path(P.slice(0,h+1),-10*e*q,-8*e);path(P.slice(h),10*e*q,8*e);return}
+ path(P,0,0);const n=Math.floor((1-f)*6);ax.strokeStyle=css('--bad');ax.lineWidth=2;
+ for(let i=0;i<n;i++){const p=P[Math.floor((i+1)/(n+1)*(P.length-1))];ax.beginPath();ax.moveTo(p[0]-6,p[1]-6);ax.lineTo(p[0]+1,p[1]);ax.lineTo(p[0]-3,p[1]+7);ax.stroke()}}
+function drawArena(){ax.clearRect(0,0,640,300);ax.fillStyle=css('--card');ax.fillRect(0,0,640,300);ax.fillStyle=css('--line');ax.fillRect(0,276,640,24);
+ if(!me)return;const sh=(Math.random()-.5)*tension*8,d=S.state==='done';
+ stem(me,false,myHp/me.hp,-tension*10+sh,d&&res!==true);
+ if(opp)stem(opp,true,oppHp/opp.hp,tension*10-sh,d&&res!==false);
+ if(opp){ax.strokeStyle=css('--ac');ax.lineWidth=4;for(const x of[305,335]){ax.beginPath();ax.ellipse(x,150,16,10,0,0,7);ax.stroke()}}
+ if(cd){ax.fillStyle=css('--fg');ax.font='700 56px sans-serif';ax.textAlign='center';ax.fillText(cd,320,100)}}
+requestAnimationFrame(tick);
+
+function clean(){clearInterval(cpuT);clearInterval(sendT);unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];if(room){room.leave().catch(()=>{});room=null}opp=null;S.state='idle';cd=''}
+$('#back').onclick=()=>{clean();show('draw');stat()};
+$('#cpu').onclick=()=>{if(!me)return;clean();S.mode='cpu';opp=genCpu();show('match');prepare();$('#go').hidden=true;beginCount()};
+$('#go').onclick=()=>{$('#go').hidden=true;
+ if(S.mode==='cpu'){opp=genCpu();prepare();beginCount();return}
+ readyMe=true;room.emit('ready',{}).catch(()=>{});info('相手の準備を待っています…');maybeStart()};
+function maybeStart(){if(readyMe&&readyOpp&&(S.state==='ready'||S.state==='done')){readyMe=readyOpp=false;prepare();beginCount()}}
+$('#tap').onpointerdown=e=>{e.preventDefault();myTap()};
+addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&S.state==='fight'){e.preventDefault();if(!e.repeat)myTap()}});
+
+function sendHello(){if(room&&me)room.emit('hello',{p:me.p,w:me.w,hp:me.hp,pw:me.pw}).catch(()=>{})}
+function onHello(m){if(m.isMe||(opp&&opp.peer!==m.peer))return;const d=m.data||{};
+ if(!Array.isArray(d.p)||d.p.length<2||d.p.length>100||!['wait','ready','done'].includes(S.state))return;
+ const first=S.state==='wait';
+ opp={peer:m.peer,p:d.p.map(a=>[clamp(+a[0]||0,0,1000),clamp(+a[1]||0,0,1000)]),w:clamp(+d.w||6,2,16),hp:clamp(+d.hp||80,20,200),pw:clamp(+d.pw||10,3,25)};
+ if(first){S.state='ready';prepare();$('#go').hidden=false;$('#go').textContent='準備OK';info('相手が来ました！準備OKを押してね')}else if(S.state==='ready'){oppHp=opp.hp}}
+function onReady(m){if(m.isMe||!opp||m.peer!==opp.peer)return;readyOpp=true;maybeStart()}
+function onTap(m){if(m.isMe||!opp||m.peer!==opp.peer)return;const c=+(m.data&&m.data.c)||0,d=clamp(c-oppC,0,30);oppC=c;if(S.state==='fight')oppHit(d)}
+function onBroke(m){if(m.isMe||!opp||m.peer!==opp.peer)return;if(S.state==='fight')finish(true);else if(S.state==='done'&&res===false){res='draw';msg()}}
+$('#net').onclick=async()=>{if(!me)return;
+ const code=$('#code').value.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,12);if(code.length<2)return stat('部屋コードは2文字以上にしてね');
+ const R=window.claude&&await claude.use('room');if(!R)return stat('オンラインに接続できません。ログインした状態で開いてね（CPU戦は遊べます）');
+ clean();let r;try{r=await R.join('kusa-'+code)}catch(e){return stat('部屋に入れませんでした')}
+ room=r;S.mode='net';S.state='wait';readyMe=readyOpp=false;show('match');prepare();$('#go').hidden=true;info('部屋「'+code+'」で相手を待っています…同じコードを入れてもらってね');
+ unsubs=[r.on('hello',onHello),r.on('ready',onReady),r.on('tap',onTap),r.on('broke',onBroke),
+  r.onPeers(ch=>{if(ch.joined.some(p=>!p.isMe))sendHello();
+   if(opp&&!r.peers().some(p=>p.peer===opp.peer)){clearInterval(sendT);opp=null;readyMe=readyOpp=false;S.state='wait';cd='';$('#go').hidden=true;prepare();info('相手が退出しました。待っています…')}})];
+ sendHello()};
+</script></body></html>
