@@ -295,6 +295,7 @@ const S={mode:null,state:'idle'};
 let raw=[],drawing=false,me=null,opp=null,myHp=1,oppHp=1,myTaps=0,oppC=0,sent=0,myDmg=0,oppD=0,tension=0,res=null,endAt=0,cd='',cdAt=0;
 let peerClient=null,peerId='',room=null,activeConn=null,expectedPeer='',pendingConnections=new Map(),unsubs=[];
 let cpuT=0,sendT=0,hbTimer=0,matchTimer=0,searchMode=null,searchBusy=false,searchDeadline=0,activeRoomCode='';
+let peerTry=0,peerOpenTimer=0,peerRetryTimer=0,connTimer=0,lastSearch=null,matchRetry=0;
 let lossRun=0,resultTimer=0,lastSettle=null,lastP={me:null,opp:null},lastOppFx=0,readyMe=false,readyOpp=false;
 const sessionId=(crypto.randomUUID?crypto.randomUUID():('s_'+Math.random().toString(36).slice(2)+Date.now().toString(36)));
 $('#code').value=Math.random().toString(36).slice(2,6);
@@ -306,7 +307,7 @@ if(inviteCode){$('#code').value=inviteCode;$('#invite').hidden=false}
 async function apiPost(data){
  const response=await fetch('/api/match',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,sessionId})});
  const payload=await response.json().catch(()=>({}));
- if(!response.ok)throw new Error(payload.error||`通信エラー (${response.status})`);
+ if(!response.ok){const hint=response.status===401||response.status===403?'Vercelの保護設定でAPIが弾かれています':response.status===404?'APIが見つかりません(api/match.jsがデプロイされていません)':'通信エラー';throw new Error(payload.error||`${hint} (HTTP ${response.status})`)}
  return payload;
 }
 function showOnline(n){$('#online').textContent=Number.isFinite(Number(n))?`🟢 いま約 ${Number(n)} 人`:'オンライン人数を取得できません';}
@@ -351,7 +352,7 @@ function redraw(){cx.clearRect(0,0,640,260);
  cx.lineCap=cx.lineJoin='round';cx.lineWidth=lw+6;cx.strokeStyle=INK;path();cx.stroke();
  cx.lineWidth=lw;cx.strokeStyle=padColor();path();cx.stroke()}
 function stat(m){
- $('#stat').textContent=m||(me?'この草でたたかうよ！':'まず草を描いてね');
+ $('#stat').textContent=m||(me?(peerId?'この草でたたかうよ！':'この草でたたかうよ！（オンラインは対戦サーバーに接続中…）'):'まず草を描いてね');
  $('#mHp').textContent=me?me.hp:'-';$('#mPw').textContent=me?me.pw:'-';
  $('#mHpBar').style.width=me?clamp(me.hp/150,.05,1)*100+'%':'0';$('#mPwBar').style.width=me?clamp(me.pw/20,.05,1)*100+'%':'0';
  const ok=!!me,net=ok&&!!peerId;
@@ -572,17 +573,38 @@ function tick(now){
 requestAnimationFrame(tick);
 
 /* ===== オンライン（PeerJS / WebRTC）。元の構成を維持し、ダメージ値の同期だけ追加 ===== */
+// PeerJS既定と同じSTUN/TURN（公開の共用TURN）＋STUNを1つ追加。configを渡すと既定が置き換わるので全部書く
+const PEER_CONFIG={iceServers:[
+ {urls:['stun:stun.l.google.com:19302','stun:stun.cloudflare.com:3478']},
+ {urls:['turn:eu-0.turn.peerjs.com:3478','turn:us-0.turn.peerjs.com:3478'],username:'peerjs',credential:'peerjsp'}
+],sdpSemantics:'unified-plan'};
+const peerStatus=t=>{if(!peerId)$('#online').textContent=t};
+function recreatePeer(){
+ clearTimeout(peerRetryTimer);
+ const wait=Math.min(15000,2000*2**Math.min(peerTry,3));peerTry++;
+ peerRetryTimer=setTimeout(()=>{const old=peerClient;peerClient=null;peerId='';try{old&&old.destroy()}catch(e){}initPeer()},wait);
+}
 function initPeer(){
- if(!window.Peer){$('#online').textContent='PeerJSを読み込めませんでした';return}
- peerClient=new Peer(undefined,{debug:1});
- peerClient.on('open',id=>{peerId=id;stat();startHeartbeat()});
- peerClient.on('connection',conn=>{
+ if(!window.Peer){$('#online').textContent='PeerJSを読み込めませんでした（通信環境を確認して再読み込みしてね）';return}
+ clearTimeout(peerOpenTimer);clearTimeout(peerRetryTimer);
+ const p=new Peer(undefined,{debug:1,config:PEER_CONFIG});peerClient=p;peerId='';stat();
+ peerStatus('🟡 対戦サーバーに接続中…');
+ peerOpenTimer=setTimeout(()=>{if(peerClient===p&&!peerId)peerStatus('🟡 対戦サーバーへの接続に時間がかかっています…（自動で再試行します）')},12000);
+ p.on('open',id=>{if(peerClient!==p)return;clearTimeout(peerOpenTimer);peerTry=0;peerId=id;stat();startHeartbeat()});
+ p.on('connection',conn=>{
+  if(peerClient!==p){conn.close();return}
   // Redis側のマッチ通知より先にPeerJSの接続が届くことがあるので、先に取り付けて最初のhelloを取りこぼさない
   if(S.mode==='net'&&(S.state==='wait'||S.state==='ready')&&(!expectedPeer||conn.peer===expectedPeer))attachConnection(conn);
   else conn.close();
  });
- peerClient.on('disconnected',()=>{try{peerClient.reconnect()}catch(e){console.warn(e)}});
- peerClient.on('error',e=>{console.warn('PeerJS:',e);if(e.type==='peer-unavailable'&&S.mode==='net')info('相手への接続に失敗しました。もう一度お試しください。')});
+ p.on('disconnected',()=>{if(peerClient!==p||p.destroyed||!peerId)return;try{p.reconnect()}catch(e){console.warn(e);recreatePeer()}});
+ p.on('close',()=>{if(peerClient!==p)return;peerId='';stat();peerStatus('🔴 対戦サーバーとの接続が切れました。再接続中…');recreatePeer()});
+ p.on('error',e=>{
+  console.warn('PeerJS:',e);if(peerClient!==p)return;
+  if(e.type==='peer-unavailable'){if(S.mode==='net')retryMatch('相手に届きませんでした');return}
+  if(e.type==='browser-incompatible'){peerStatus('このブラウザはオンライン対戦に対応していません');return}
+  if(!peerId){peerStatus('🔴 対戦サーバーに接続できません（'+e.type+'）。自動で再試行します');try{p.destroy()}catch(_){}} // destroyすると'close'が来て再作成される
+ });
 }
 function makeRoomAdapter(conn){
  const listeners=new Map();
@@ -597,7 +619,7 @@ function attachConnection(conn){
  if(activeConn&&activeConn!==conn){conn.close();return}
  activeConn=conn;expectedPeer=conn.peer;pendingConnections.delete(conn.peer);room=makeRoomAdapter(conn);
  unsubs=[room.on('hello',onHello),room.on('ready',onReady),room.on('tap',onTap),room.on('broke',onBroke)];
- const opened=()=>{if(activeConn!==conn)return;info('接続しました。草の状態を交換しています…');sendHello()};
+ const opened=()=>{if(activeConn!==conn)return;clearTimeout(connTimer);info('接続しました。草の状態を交換しています…');sendHello()};
  conn.on('open',opened);conn.on('close',()=>{if(activeConn!==conn)return;activeConn=null;room=null;unsubs=[];clearInterval(sendT);if(S.state==='fight')finish('disconnect');else if(S.state==='done')$('#go').hidden=true;else if(S.mode==='net'){S.state='wait';$('#go').hidden=true;info('相手との接続が切れました。戻って再接続してください')}});
  conn.on('error',e=>{console.warn('DataConnection:',e);if(S.state!=='done')info('通信エラーが発生しました')});
  if(conn.open)opened();
@@ -605,6 +627,7 @@ function attachConnection(conn){
 function connectToOpponent(remotePeerId){
  if(!validPeerId(remotePeerId)||remotePeerId===peerId){info('対戦相手のIDが不正です');return}
  expectedPeer=remotePeerId;
+ clearTimeout(connTimer);connTimer=setTimeout(()=>{if(S.mode==='net'&&(!activeConn||!activeConn.open))retryMatch('相手につながりませんでした')},15000);
  if(activeConn){if(activeConn.peer===remotePeerId)return;activeConn.close();activeConn=null;room=null}
  if(peerId.localeCompare(remotePeerId)<0){info('相手に接続しています…');const conn=peerClient.connect(remotePeerId,{reliable:true,serialization:'json'});attachConnection(conn)}
  else info('相手からの接続を待っています…');
@@ -632,7 +655,7 @@ function maybeStart(){if(readyMe&&readyOpp&&(S.state==='ready'||S.state==='done'
 
 async function clean(notify=true){
  const oldCode=activeRoomCode,wasNet=S.mode==='net'||!!searchMode;
- clearInterval(cpuT);clearInterval(sendT);clearTimeout(matchTimer);searchMode=null;searchBusy=false;hideResult();
+ clearInterval(cpuT);clearInterval(sendT);clearTimeout(matchTimer);clearTimeout(connTimer);searchMode=null;searchBusy=false;hideResult();
  unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
  const old=activeConn;activeConn=null;room=null;if(old){try{old.close()}catch(e){}}
  for(const c of pendingConnections.values()){try{c.close()}catch(e){}}pendingConnections.clear();expectedPeer='';opp=null;readyMe=readyOpp=false;cd='';resetFx();
@@ -651,8 +674,17 @@ async function pollSearch(){
  }catch(e){const failedCode=activeRoomCode;searchMode=null;clearTimeout(matchTimer);info('オンライン対戦に接続できません：'+e.message);apiPost({action:'cancel',roomCode:failedCode}).catch(()=>{})}
  finally{searchBusy=false;if(searchMode)matchTimer=setTimeout(pollSearch,searchMode==='random'?1400:2200)}
 }
-async function startSearch(mode,code=''){
+function retryMatch(why){
+ clearTimeout(connTimer);
+ if(!lastSearch||matchRetry>=2){
+  const code=activeRoomCode;searchMode=null;clearTimeout(matchTimer);
+  apiPost({action:'cancel',roomCode:code}).catch(()=>{});
+  info(why+'。もう一度ためしてね。つながらないときは、学校や会社のWi-Fiが通信を止めている場合があるので、モバイル回線でも試してみて');return}
+ matchRetry++;const {mode,code}=lastSearch;toast(why+'。探し直します…');startSearch(mode,code,true);
+}
+async function startSearch(mode,code='',isRetry=false){
  if(!me)return;if(!peerId){stat('PeerJSに接続中です。少し待ってください');return}
+ if(!isRetry)matchRetry=0;lastSearch={mode,code};
  await clean();S.mode='net';S.state='wait';searchMode=mode;activeRoomCode=code;searchDeadline=Date.now()+120000;
  show('match');prepare();S.state='wait';$('#go').hidden=true;
  info(mode==='random'?'ランダムマッチで相手を探しています…':'部屋「'+code+'」で相手を待っています…');
@@ -690,7 +722,9 @@ $('#tap').onpointerdown=tapDown;$('#stage').onpointerdown=tapDown;$('#tap').onco
 addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&S.state==='fight'){e.preventDefault();if(!e.repeat)myTap()}});
 $('#back').onclick=async()=>{await clean();show('draw');stat();renderMeta()};
 addEventListener('beforeunload',()=>{if(peerId){const payload=JSON.stringify({action:'leave',sessionId,roomCode:activeRoomCode});try{navigator.sendBeacon('/api/match',new Blob([payload],{type:'application/json'}))}catch(e){}}});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)heartbeat()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)return;heartbeat();
+ if(peerClient&&peerId&&peerClient.disconnected&&!peerClient.destroyed){try{peerClient.reconnect()}catch(e){console.warn(e)}}
+ if(searchMode&&!searchBusy){clearTimeout(matchTimer);pollSearch()}}); // スマホで共有画面などに行っている間は止まるので、戻ってきたらすぐ再開
 initPeer();
 </script>
 </body>
