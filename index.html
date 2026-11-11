@@ -57,7 +57,7 @@ input[type=range]{accent-color:var(--grass-d);flex:1;min-width:120px}
 .meter{font:400 14px/1.5 var(--disp)}.meter span{float:right}
 .mbar{clear:both;height:13px;border:2px solid var(--ink);border-radius:7px;background:#e7ecd9;overflow:hidden}
 .mbar i{display:block;height:100%;width:0;transition:width .25s}
-#mHpBar{background:#3ccf5a}#mPwBar{background:#ff8a1f}
+#mHpBar{background:#3ccf5a}#mPwBar{background:#ff8a1f}#mCrBar{background:#ffd60a}#mFlBar{background:#8a5cff}
 .skins{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .skin{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 5px;border:3px solid var(--ink);border-radius:999px;background:#fff;font:700 13px/1.6 var(--body);cursor:pointer}
 .skin.on{background:#fff3a0;box-shadow:0 0 0 3px var(--gold)}.skin.lock{opacity:.55}.skin small{color:var(--mute);font-weight:700}
@@ -68,6 +68,21 @@ input[type=range]{accent-color:var(--grass-d);flex:1;min-width:120px}
 .invite{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff3a0;border:3px solid var(--ink);border-radius:16px;padding:10px 12px;margin-top:14px;font-weight:700}
 .invite span{flex:1 1 180px}
 
+.kind{margin:6px 0 0;padding:6px 10px;border:3px solid var(--ink);border-radius:12px;background:#fff3a0;font:700 13.5px/1.5 var(--body)}
+.tag{font:700 11px/1.3 var(--body);padding:0 6px;border:2px solid var(--ink);border-radius:8px;background:#fff;white-space:nowrap}
+.gauge{height:9px;border:2px solid var(--ink);border-radius:6px;background:#fff;overflow:hidden;margin-top:3px}
+.gauge i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd60a,#ff7a1a)}
+.gauge.full i{animation:blink .15s infinite alternate}
+.rescard{margin-top:6px;padding:12px;border:3px solid var(--ink);border-radius:20px;background:var(--paper);box-shadow:0 6px 0 var(--ink)}
+.rhead{display:flex;align-items:center;gap:12px}
+.rank{flex:none;width:68px;height:68px;border:4px solid var(--ink);border-radius:50%;display:grid;place-items:center;font:400 38px/1 var(--disp);background:var(--gold);box-shadow:0 4px 0 var(--ink);animation:drop .5s cubic-bezier(.2,1.7,.4,1) both}
+.rank[data-r="S"]{background:linear-gradient(135deg,#ff9ae9,#ffd60a,#7dff9a)}.rank[data-r="C"]{background:#cfd8c8}
+.rstats{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin:10px 0 0;font:700 14px/1.5 var(--body)}
+.rstats div{display:flex;justify-content:space-between;border-bottom:2px dotted #b8c8b0}.rstats b{font-family:var(--disp);font-weight:400}
+.rstats .new b{color:#ff3d5a}
+#go{position:relative;overflow:hidden}
+#go .fill{position:absolute;inset:0 auto 0 0;width:0;background:rgba(255,255,255,.45);pointer-events:none}
+#go .lab{position:relative}
 .hud{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end}
 .nm{display:flex;gap:6px;align-items:center;font:400 14px/1.6 var(--disp);min-width:0}
 .side.opp .nm{justify-content:flex-end}
@@ -131,16 +146,20 @@ body.inmatch .top{justify-content:flex-end}
   <div class="row">
    <button class="btn sm" type="button" data-preset="tough">どっしり</button>
    <button class="btn sm" type="button" data-preset="zig">ギザギザ</button>
-   <button class="btn sm" type="button" data-preset="bal">バランス</button>
+   <button class="btn sm" type="button" data-preset="needle">細い針</button>
+   <button class="btn sm" type="button" data-preset="flow">うねうね</button>
    <button id="clr" class="btn sm" type="button">描き直す</button>
   </div>
   <div class="row"><label for="w">太さ</label><input id="w" type="range" min="2" max="16" value="6"></div>
   <div class="meters">
    <div class="meter">耐久<span id="mHp">-</span><div class="mbar"><i id="mHpBar"></i></div></div>
    <div class="meter">引き<span id="mPw">-</span><div class="mbar"><i id="mPwBar"></i></div></div>
+   <div class="meter">会心<span id="mCr">-</span><div class="mbar"><i id="mCrBar"></i></div></div>
+   <div class="meter">粘り<span id="mFl">-</span><div class="mbar"><i id="mFlBar"></i></div></div>
   </div>
   <p id="stat" class="stat sub">まず草を描いてね</p>
-  <p class="tip">太くてまっすぐ＝丈夫だけど引きは弱い／ギザギザ＝引きが強いけど切れやすい</p>
+  <p id="kind" class="kind" hidden></p>
+  <p class="tip">ポイントの合計は固定。形で配分が決まるから、偏らせるほど尖った草になるよ。<br>太くてまっすぐ＝鉄壁（硬い・小技に強い）／ギザギザ＝剛腕（一撃が重いけど脆い）／細くてまっすぐ＝会心（クリティカル連発）／長くてクネクネ＝粘り（コンボが伸びる）。<br>三すくみ：鉄壁→剛腕→粘り→鉄壁。会心は鉄壁が苦手！</p>
   <div id="skins" class="skins" aria-label="草の見た目"></div>
  </div>
  <div class="card">
@@ -153,9 +172,9 @@ body.inmatch .top{justify-content:flex-end}
 
 <section id="match" hidden>
  <div class="hud">
-  <div class="side me"><div class="nm"><i id="meDot" class="dot"></i><b>あなた</b></div><div id="hpm" class="hp"><i id="bm"></i></div></div>
+  <div class="side me"><div class="nm"><i id="meDot" class="dot"></i><b>あなた</b><span id="meTag" class="tag"></span></div><div id="hpm" class="hp"><i id="bm"></i></div><div id="gauge" class="gauge" title="必殺ゲージ"><i id="gbar"></i></div></div>
   <div class="vs">VS</div>
-  <div class="side opp"><div class="nm"><b id="oppName">あいて</b><i id="oppDot" class="dot"></i></div><div id="hpo" class="hp"><i id="bo"></i></div></div>
+  <div class="side opp"><div class="nm"><span id="oppTag" class="tag"></span><b id="oppName">あいて</b><i id="oppDot" class="dot"></i></div><div id="hpo" class="hp"><i id="bo"></i></div></div>
  </div>
  <div id="stage" class="stage">
   <canvas id="arena"></canvas>
@@ -167,9 +186,13 @@ body.inmatch .top{justify-content:flex-end}
   </div>
  </div>
  <p id="info" class="info"></p>
+ <div id="resCard" class="rescard" hidden>
+  <div class="rhead"><div id="rank" class="rank">A</div><div><b id="rkTitle"></b><div id="rkSub" class="sub"></div></div></div>
+  <div id="rstats" class="rstats"></div>
+ </div>
  <div class="dock">
   <button id="tap" class="tapbtn" type="button" hidden disabled>じゅんび…</button>
-  <button id="go" class="btn pri big" type="button" hidden>準備OK</button>
+  <button id="go" class="btn pri big" type="button" hidden><span id="goFill" class="fill"></span><span id="goLab" class="lab">準備OK</span></button>
  </div>
  <div class="under">
   <button id="share" class="btn gold" type="button" hidden>結果をシェア</button>
@@ -187,13 +210,55 @@ const K=0.11,W=640,H=360,INK='#1a2b1c';
 const DISP='"Mochiy Pop One","Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif';
 // 視覚過敏への配慮：OSの「視差効果を減らす」設定なら揺れ・フラッシュを弱める
 const FX=matchMedia('(prefers-reduced-motion: reduce)').matches?.35:1;
+/*CORE*/
+/* ===== 草の性能：形で決まる4つの性質。ポイント合計は固定なので「全部盛り」はできない ===== */
+const BUDGET=100,GAMMA=1.7,GMAX=36;
+const KINDS=[
+ {id:'hp',name:'鉄壁',sp:'どっしり返し',col:'#35b657',desc:'HPを22%回復'},
+ {id:'pw',name:'剛腕',sp:'ぶっこ抜き',col:'#ff7a1a',desc:'一撃で9連打ぶんの大ダメージ'},
+ {id:'cr',name:'会心',sp:'会心ラッシュ',col:'#e6b800',desc:'3秒間ぜんぶ会心'},
+ {id:'fl',name:'粘り',sp:'ゾーン',col:'#7a3cff',desc:'4秒間コンボ強化×2＆途切れない'}];
+const kindOf=id=>KINDS.find(k=>k.id===id)||KINDS[0];
+// 各性質は exp(c×ポイント) で伸びる＝どう配分しても総合力はほぼ同じ。差は「どう強いか」（三すくみ）に出る
+const TUNE={c:.0105,hp0:52,pw0:11.3,ar:.0091,cc0:.035,cm:3.85,cbN:13.8,wn0:330,wnK:4.5};
+function shapeFeat(r,w){ // r=8pxで間引いた点列
+ let L=0,Ts=0,sharp=0,n=0,pa=null;
+ for(let i=1;i<r.length;i++){const dx=r[i][0]-r[i-1][0],dy=r[i][1]-r[i-1][1];L+=Math.hypot(dx,dy);const a=Math.atan2(dy,dx);
+  if(pa!==null){let d=Math.abs(a-pa);if(d>Math.PI)d=2*Math.PI-d;n++;if(d>1.1)sharp++;else Ts+=d}pa=a}
+ n=Math.max(n,1);
+ return{thick:clamp((w-2)/14,0,1),len:clamp(L/1400,0,1),sh:clamp(sharp/(Math.max(L,200)/1000)/6,0,1),cu:clamp(Ts/n/.3,0,1)}
+}
+function allocate(f,B=BUDGET){
+ const r={hp:f.thick*(1-.5*f.cu)*(1-.8*f.sh),pw:f.sh*.85+f.len*.15*(1-f.thick),cr:(1-f.thick)*(1-f.sh)*(1-.9*f.cu),fl:f.cu*(.6+.4*f.len)*(1-.7*f.sh)};
+ const a={};let t=0;for(const k in r){a[k]=Math.pow(.1+r[k],GAMMA);t+=a[k]}
+ const P={};for(const k in a)P[k]=B*a[k]/t;return P
+}
+function derive(P){const T=TUNE,E=k=>Math.exp(T.c*P[k]);
+ return{P,hp:Math.round(T.hp0*E('hp')),ar:T.ar*P.hp,pw:T.pw0*E('pw'),cc:Math.min(.9,T.cc0+(E('cr')-1)/(T.cm-1)),cm:T.cm,wn:T.wn0+T.wnK*P.fl,cb:(E('fl')-1)/T.cbN,
+  top:Object.keys(P).reduce((a,b)=>P[a]>=P[b]?a:b)}
+}
+const build=(r,w,B)=>derive(allocate(shapeFeat(r,w),B));
+const dmgTo=(t,d)=>t?Math.max(d*.35,d-t.ar):d; // 軽減：1発ごとに固定値を引く（下限35%）。小技には強く、大技には弱い
+/* 形の見本（プリセットとCPU共通） */
+const wave=(amp,per)=>{const a=[];for(let x=70;x<=570;x+=5)a.push([x,130+Math.sin(x/per)*amp]);return a};
+const zigA=(n,lo,hi)=>{const a=[];for(let i=0;i<=n;i++)a.push([70+i*500/n,i%2?rnd(lo,lo+40):rnd(hi-50,hi)]);return a};
+const SHAPES={
+ tough:rand=>rand?{w:rnd(12,16),a:wave(rnd(8,18),rnd(90,130))}:{w:15,a:wave(16,110)},
+ zig:rand=>rand?{w:rnd(3,6),a:zigA(rnd(14,22)|0,150,110)}:{w:4,a:zigA(20,200,100)},
+ needle:rand=>rand?{w:rnd(2,4),a:wave(rnd(3,10),rnd(150,230))}:{w:3,a:wave(6,190)},
+ flow:rand=>rand?{w:rnd(4,8),a:wave(rnd(48,62),rnd(24,32))}:{w:6,a:wave(55,28)}
+};
+/* CPUの強さ：連勝するほど強くなり、5連勝ごとにボス。連敗中は少し手加減 */
+function cpuParams(st,loss){const boss=(st+1)%5===0,s=clamp(.8+st*.06,.8,1.7)*(loss>=2?.85:1);
+ return{boss,s,B:100*(.97+.35*(s-.8)/.9)*(boss?1.06:1),tp:.62+.04*s}}
+/*ENDCORE*/
 
 /* ===== セーブデータ（この端末のlocalStorageだけ。サーバーには送らない） ===== */
 const SAVE_KEY='kusazumo.save.v2';
-const save={xp:0,lv:1,wins:0,losses:0,streak:0,best:0,skin:'green',mute:false,lastWin:'',stem:null};
+const save={xp:0,lv:1,wins:0,losses:0,streak:0,best:0,bc:0,bt:0,skin:'green',mute:false,lastWin:'',stem:null};
 try{
  const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');
- for(const k of['xp','lv','wins','losses','streak','best'])if(Number.isFinite(+o[k])&&+o[k]>=0)save[k]=Math.floor(+o[k]);
+ for(const k of['xp','lv','wins','losses','streak','best','bc','bt'])if(Number.isFinite(+o[k])&&+o[k]>=0)save[k]=Math.floor(+o[k]);
  if(typeof o.skin==='string')save.skin=o.skin;
  save.mute=!!o.mute;
  if(typeof o.lastWin==='string')save.lastWin=o.lastWin.slice(0,10);
@@ -259,7 +324,8 @@ const SFX={
  lose(){[392,330,262,196].forEach((f,i)=>tone(f,.28,'triangle',.22,.97,i*.14))},
  up(){[659,784,988,1319,1568].forEach((f,i)=>tone(f,.16,'square',.16,1,i*.07))},
  mile(){[784,988,1175].forEach((f,i)=>tone(f,.1,'square',.14,1,i*.05))},
- ui(){tone(660,.06,'square',.1)}
+ ui(){tone(660,.06,'square',.1)},
+ sp(){[392,523,659,784,1047,1319].forEach((f,i)=>tone(f,.14,'sawtooth',.16,1.1,i*.04));noise(.25,.3,1200)}
 };
 const vib=p=>{try{if(!save.mute&&navigator.vibrate)navigator.vibrate(p)}catch(e){}};
 
@@ -297,6 +363,7 @@ let peerClient=null,peerId='',room=null,activeConn=null,expectedPeer='',pendingC
 let cpuT=0,sendT=0,hbTimer=0,matchTimer=0,searchMode=null,searchBusy=false,searchDeadline=0,activeRoomCode='';
 let peerTry=0,peerOpenTimer=0,peerRetryTimer=0,connTimer=0,lastSearch=null,matchRetry=0;
 let lossRun=0,resultTimer=0,lastSettle=null,lastP={me:null,opp:null},lastOppFx=0,readyMe=false,readyOpp=false;
+let gauge=0,myCrits=0,mySp=0,dealt=0,oppK=0,sentH=-1,rushUntil=0,zoneUntil=0,fightAt=0,resAt=0,lastInputAt=0,lastOppSp=-1e9,backAt=0,goText='準備OK';
 const sessionId=(crypto.randomUUID?crypto.randomUUID():('s_'+Math.random().toString(36).slice(2)+Date.now().toString(36)));
 $('#code').value=Math.random().toString(36).slice(2,6);
 // ?room=xxxx 付きURLで開いた＝友達からの招待
@@ -343,7 +410,6 @@ function norm(r){let a=1e9,b=1e9,c=-1e9,d=-1e9;for(const[x,y]of r){a=Math.min(a,
  const k=1000/Math.max(c-a,d-b,1),st=Math.ceil(r.length/90),p=[];
  for(let i=0;i<r.length;i+=st)p.push([Math.round((r[i][0]-a)*k),Math.round((r[i][1]-b)*k)]);
  const e=r[r.length-1];p.push([Math.round((e[0]-a)*k),Math.round((e[1]-b)*k)]);return p}
-function stats(w,wig,L){const lf=clamp(L/400,.3,1.2);return{hp:Math.round((30+w*6)*(1.3-.6*wig)*(.6+.4*lf)),pw:Math.round(10*(.7+wig*.8+lf*.3)*10)/10}}
 function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*640/r.width,(e.clientY-r.top)*260/r.height]}
 function padColor(){const s=mySkin();if(s.id!=='rainbow')return s.base;const g=cx.createLinearGradient(0,0,640,0);RAINBOW.forEach((c,i)=>g.addColorStop(i/7,c));return g}
 function redraw(){cx.clearRect(0,0,640,260);
@@ -353,25 +419,21 @@ function redraw(){cx.clearRect(0,0,640,260);
  cx.lineWidth=lw;cx.strokeStyle=padColor();path();cx.stroke()}
 function stat(m){
  $('#stat').textContent=m||(me?(peerId?'この草でたたかうよ！':'この草でたたかうよ！（オンラインは対戦サーバーに接続中…）'):'まず草を描いてね');
- $('#mHp').textContent=me?me.hp:'-';$('#mPw').textContent=me?me.pw:'-';
- $('#mHpBar').style.width=me?clamp(me.hp/150,.05,1)*100+'%':'0';$('#mPwBar').style.width=me?clamp(me.pw/20,.05,1)*100+'%':'0';
+ const M=me?[[me.hp+(me.ar>=.3?`（軽減${me.ar.toFixed(1)}）`:''),me.P.hp],[Math.round(me.pw*K*10),me.P.pw],[Math.round(me.cc*100)+'%',me.P.cr],['+'+Math.round(40*me.cb*100)+'%',me.P.fl]]:[['-',0],['-',0],['-',0],['-',0]];
+ ['Hp','Pw','Cr','Fl'].forEach((k,i)=>{$('#m'+k).textContent=M[i][0];$('#m'+k+'Bar').style.width=M[i][1]?clamp(M[i][1]/100,.04,1)*100+'%':'0'});
+ const kd=$('#kind');kd.hidden=!me;if(me){const k=kindOf(me.top);kd.textContent=`${k.name}型｜必殺「${k.sp}」：${k.desc}`}
  const ok=!!me,net=ok&&!!peerId;
  $('#cpu').disabled=!ok;$('#net').disabled=!net;$('#random').disabled=!net;$('#inviteMake').disabled=!net;$('#joinInv').disabled=!net;
 }
 function finishStem(){const r=resample(raw,8);if(r.length<6){me=null;return stat('もう少し長く描いてね')}
- let L=0,T=0,pa=null;for(let i=1;i<r.length;i++){const dx=r[i][0]-r[i-1][0],dy=r[i][1]-r[i-1][1];L+=Math.hypot(dx,dy);const a=Math.atan2(dy,dx);if(pa!==null){let d=Math.abs(a-pa);if(d>Math.PI)d=2*Math.PI-d;T+=d}pa=a}
- const wig=clamp(T/(r.length-2)/.8,0,1),w=+$('#w').value;me={p:norm(r),w,wig,...stats(w,wig,L)};stat();
+ const w=+$('#w').value;me={p:norm(r),w,...build(r,w)};stat();
  save.stem={p:resample(raw,6).map(a=>[Math.round(a[0]),Math.round(a[1])]),w};persist()}
 cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);drawing=true;raw=[pos(e)];me=null;redraw();stat()};
 cv.onpointermove=e=>{if(!drawing)return;const p=pos(e),l=raw[raw.length-1];if(Math.hypot(p[0]-l[0],p[1]-l[1])>2){raw.push(p);redraw()}};
 cv.onpointerup=cv.onpointercancel=()=>{if(drawing){drawing=false;finishStem()}};
 $('#w').oninput=()=>{redraw();if(raw.length&&!drawing)finishStem()};
 $('#clr').onclick=()=>{raw=[];me=null;save.stem=null;persist();redraw();stat()};
-function preset(kind){const a=[];let w=8;
- if(kind==='tough'){w=15;for(let x=70;x<=570;x+=5)a.push([x,130+Math.sin(x/110)*16])}
- else if(kind==='zig'){w=4;for(let i=0;i<=20;i++)a.push([70+i*25,i%2?200:60])}
- else{w=8;for(let x=70;x<=570;x+=5)a.push([x,130+Math.sin(x/42)*46])}
- raw=a;$('#w').value=w;redraw();finishStem();SFX.ui()}
+function preset(kind){const sh=SHAPES[kind](false);raw=sh.a;$('#w').value=sh.w;redraw();finishStem();SFX.ui()}
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>preset(b.dataset.preset));
 if(save.stem){raw=save.stem.p.map(a=>[a[0],a[1]]);$('#w').value=save.stem.w;redraw();finishStem()}else redraw();
 renderMeta();renderSkins();stat();
@@ -381,24 +443,25 @@ const NAMES=['ひよっこ草','ふつうの草','つよい草','あばれ草','
 const BOSSES=['大横綱ミドリ','草の魔王グリーン','伝説のオオバコ神'];
 const TAUNT=['かかってこい！','ぜったい負けないぞ！','草のちからを見せてやる！','連打で勝負だ！'];
 function makeCpu(){
- const st=save.streak,boss=(st+1)%5===0,s=clamp(.8+st*.06,.8,1.7)*(lossRun>=2?.85:1);
- const wig=rnd(.1,.9),w=rnd(4,13),a=[];for(let i=0;i<60;i++)a.push([i*16,Math.sin(i/60*(3+wig*10))*wig*120]);
- const b=stats(w,wig,rnd(300,400)),hm=(.8+.25*s)*(boss?1.25:1),pm=(.85+.15*s)*(boss?1.1:1);
- return{p:norm(a),w,wig,hp:Math.round(b.hp*hm),pw:Math.round(b.pw*pm*10)/10,sk:boss?pick(['gold','rainbow']):pick(SKINS.map(x=>x.id)),
-  name:boss?BOSSES[((st+1)/5-1)%BOSSES.length|0]:NAMES[Math.min(5,st>>1)],boss,tp:.5+.06*s};
+ const st=save.streak,q=cpuParams(st,lossRun),sh=SHAPES[pick(Object.keys(SHAPES))](true),d=build(resample(sh.a,8),sh.w,q.B);
+ return{p:norm(sh.a),w:sh.w,...d,sk:q.boss?pick(['gold','rainbow']):pick(SKINS.map(x=>x.id)),
+  name:q.boss?BOSSES[((st+1)/5-1)%BOSSES.length|0]:NAMES[Math.min(5,st>>1)],boss:q.boss,tp:q.tp,combo:0,lastTap:0,g:0,rush:0,zone:0};
 }
 
 /* ===== 対戦の流れ ===== */
 function show(id){['draw','match'].forEach(i=>$('#'+i).hidden=i!==id);document.body.classList.toggle('inmatch',id==='match');scrollTo(0,0)}
 const info=t=>$('#info').textContent=t;
 const oppSkin=()=>skinOf(opp&&opp.sk);
-function hideResult(){clearTimeout(resultTimer);$('#result').hidden=true}
-function prepare(){myHp=me.hp;oppHp=opp?opp.hp:1;myTaps=oppC=sent=0;myDmg=oppD=0;tension=0;res=null;lastP={me:null,opp:null};resetFx();hideResult();info('');
+function hideResult(){clearTimeout(resultTimer);$('#result').hidden=true;$('#resCard').hidden=true;resAt=0}
+function setGo(t){goText=t;$('#goLab').textContent=t}
+function setTags(){const m=me&&kindOf(me.top),o=opp&&opp.top&&kindOf(opp.top);$('#meTag').textContent=m?m.name+'型':'';$('#oppTag').textContent=o?o.name+'型':''}
+function prepare(){myHp=me.hp;oppHp=opp?opp.hp:1;myTaps=oppC=sent=0;myDmg=oppD=0;tension=0;res=null;lastP={me:null,opp:null};resetFx();hideResult();info('');gauge=myCrits=mySp=dealt=oppK=0;sentH=-1;rushUntil=zoneUntil=0;$('#go').disabled=false;$('#goFill').style.width='0';setTags();
  $('#oppName').textContent=opp&&opp.name?opp.name:'あいて';$('#meDot').style.background=dotBg(mySkin());$('#oppDot').style.background=opp?dotBg(oppSkin()):'#fff'}
 function beginCount(){S.state='count';let n=3;cd='3';cdAt=performance.now();SFX.count();
+ if(me&&opp&&opp.top){const a=kindOf(me.top),b=kindOf(opp.top);popText(a.name+'型',150,60,{size:32,col:'#fff',life:2,vy:0});popText(b.name+'型',W-150,60,{size:32,col:b.col,life:2,vy:0})}
  const iv=setInterval(()=>{n--;cdAt=performance.now();
   if(n>0){cd=String(n);SFX.count()}
-  else{clearInterval(iv);cd='引け！';SFX.go();S.state='fight';startTimers();info('連打！連打！！');setTimeout(()=>cd='',700)}},800)}
+  else{clearInterval(iv);cd='引け！';SFX.go();S.state='fight';fightAt=performance.now();startTimers();info('連打！連打！！');setTimeout(()=>cd='',700)}},800)}
 function startCpu(){
  opp=makeCpu();show('match');prepare();$('#go').hidden=true;
  if(opp.boss){popText('BOSS!',W/2,150,{size:76,col:'#ff3d5a',life:1.6,vy:0});popText(opp.name,W/2,215,{size:34,col:'#fff',life:1.6,vy:0});SFX.lose()}
@@ -410,11 +473,30 @@ function startTimers(){clearInterval(cpuT);clearInterval(sendT);
   cpuT=setInterval(()=>{if(S.state!=='fight')return;const now=performance.now();
    if(now>nextRage){rageUntil=now+900;nextRage=now+rnd(3500,6000)}      // ときどき連打ラッシュ
    const p=opp.tp+(now<rageUntil?.25:0)+(oppHp/opp.hp<.35?.12:0);          // ピンチで必死になる
-   if(Math.random()<p){const crit=Math.random()<.08;takeHit(opp.pw*K*(crit?2:1),1,crit)}},120);
- }else sendT=setInterval(()=>{if(S.state==='fight'&&room&&myTaps!==sent){sent=myTaps;room.emit('tap',{c:myTaps,d:Math.round(myDmg*100)/100}).catch(()=>{})}},120)}
+   if(Math.random()<p)cpuTap()},120);
+ }else sendT=setInterval(()=>{if(S.state==='fight'&&room){const h=Math.round(myHp*10)/10;if(myTaps!==sent||h!==sentH){sent=myTaps;sentH=h;room.emit('tap',{c:myTaps,d:Math.round(myDmg*100)/100,h,k:myCrits}).catch(()=>{})}}},120)}
 
+function specialFx(mine,k){const kd=kindOf(k),col=mine?kd.col:'#ff6b6b';
+ SFX.sp();vib(mine?[30,20,60]:[20]);
+ popText('必殺！',W/2,92,{size:30,col:'#fff',life:1.1,vy:-10});
+ popText(kd.sp,W/2,150,{size:mine?58:50,col,life:1.3,vy:-14});
+ burst(mine?W*.3:W*.7,150,mine?46:30,{speed:560,g:300,life:1,size:8,shape:'leaf',cols:[col,'#fff','#ffd60a']});
+ FXS.rings.push({x:W/2,y:150,t:0,life:.5,r0:20,r1:220,col,w:12});
+ addShake(mine?14:10);addFlash(.4,mine?'#fff6b0':'#ffb0b0')}
+function fireSpecial(){const k=me.top,t=performance.now();mySp++;specialFx(true,k);let d=0;
+ if(k==='hp'){const h=me.hp*.22;myHp=Math.min(me.hp,myHp+h);popText('+'+Math.round(h),W*.2,190,{size:36,col:'#7dff9a',life:1,vy:-60})}
+ else if(k==='pw'){d=me.pw*K*9;dealt+=d;oppHp-=dmgTo(opp,d);burst(W/2+40,150,40,{speed:620,g:500,life:.8,size:9,shape:'rect',cols:RAINBOW})}
+ else if(k==='cr')rushUntil=t+3000;else zoneUntil=t+4000;
+ if(S.mode==='net'&&room)room.emit('sp',{k,d:Math.round(d*100)/100}).catch(()=>{})}
+function cpuTap(){const t=performance.now(),z=t<opp.zone;
+ opp.combo=(t-opp.lastTap<opp.wn*(z?2:1))?opp.combo+1:1;opp.lastTap=t;
+ const crit=t<opp.rush||Math.random()<opp.cc,d=opp.pw*K*(1+Math.min(opp.combo,40)*opp.cb*(z?2:1))*(crit?opp.cm:1);
+ opp.g+=crit?2:1;if(opp.g>=GMAX){opp.g=0;cpuSpecial()}
+ takeHit(d,1,crit)}
+function cpuSpecial(){const k=opp.top,t=performance.now();specialFx(false,k);
+ if(k==='hp')oppHp=Math.min(opp.hp,oppHp+opp.hp*.22);else if(k==='pw')takeHit(opp.pw*K*9,3,true);else if(k==='cr')opp.rush=t+3000;else opp.zone=t+4000}
 function takeHit(dmg,n,crit){
- myHp-=dmg;tension=Math.min(1,tension+.12*Math.min(n,3));
+ dmg=dmgTo(me,dmg);myHp-=dmg;tension=Math.min(1,tension+.12*Math.min(n,3));
  const now=performance.now();
  burst(W/2,150,Math.min(8,n*2+(crit?8:0)),{speed:crit?420:300,ang:Math.PI,spread:1.3,g:800,life:.5,size:5,cols:['#ff6b6b','#ffd0d0','#fff']});
  if(now-lastOppFx>140||crit){lastOppFx=now;popText('-'+Math.round(dmg*10),170+rnd(-40,40),130+rnd(-20,20),{size:crit?34:20,col:'#ff6b6b',life:.5,vy:-80});SFX.hit()}
@@ -423,11 +505,11 @@ function takeHit(dmg,n,crit){
 const MILE={5:['いいね！','#ffffff'],10:['GREAT!','#7dff9a'],20:['AMAZING!!','#ffd60a'],30:['FEVER!!!','#ff5ce1'],50:['超ゴッド！！','#ff3d5a'],80:['伝説！！！','#ff3d5a']};
 function myTap(){
  if(S.state!=='fight')return;
- const now=performance.now();
- FXS.combo=(now-FXS.lastTap<430)?FXS.combo+1:1;FXS.lastTap=now;FXS.maxCombo=Math.max(FXS.maxCombo,FXS.combo);FXS.comboPop=1;
- const c=FXS.combo,crit=Math.random()<.12,dmg=me.pw*K*(1+Math.min(c,40)*.0125)*(crit?2:1); // コンボが続くほどダメージ最大1.5倍、12%でクリティカル2倍
- myTaps++;myDmg+=dmg;oppHp-=dmg;tension=Math.min(1,tension+.15);
- if(c>=30)FXS.fever=true;
+ const now=performance.now(),zone=now<zoneUntil;
+ FXS.combo=(now-FXS.lastTap<me.wn*(zone?2:1))?FXS.combo+1:1;FXS.lastTap=now;FXS.maxCombo=Math.max(FXS.maxCombo,FXS.combo);FXS.comboPop=1;
+ const c=FXS.combo,crit=now<rushUntil||Math.random()<me.cc,dmg=me.pw*K*(1+Math.min(c,40)*me.cb*(zone?2:1))*(crit?me.cm:1); // 性能は草の形で決まる（BUDGET参照）
+ myTaps++;myDmg+=dmg;dealt+=dmg;oppHp-=dmgTo(opp,dmg);tension=Math.min(1,tension+.15);if(crit)myCrits++;
+ if(c>=30||zone)FXS.fever=true;
  crit?SFX.crit():SFX.tap(c);vib(crit?[20,30,20]:6);
  // タップ演出
  const x=W/2+rnd(-14,14),y=150+rnd(-24,24),pal=palette(mySkin());
@@ -440,12 +522,13 @@ function myTap(){
  const m=MILE[c];
  if(m){popText(m[0],W/2,78,{size:c>=30?58:44,col:m[1],life:1,vy:-20});SFX.mile();
   if(c>=10){burst(W/2,110,c>=30?40:22,{speed:480,g:500,life:1,size:7,shape:'rect',cols:RAINBOW});addFlash(c>=30?.35:.2,'#fff')}}
+ gauge=Math.min(GMAX,gauge+(crit?2:1));if(gauge>=GMAX){gauge=0;fireSpecial()} // 必殺ゲージ：満タンで自動発動
 }
 
 /* ===== 決着・経験値・結果 ===== */
 function finish(r){
  if(S.state==='done')return;S.state='done';res=r;endAt=performance.now();clearInterval(cpuT);clearInterval(sendT);FXS.fever=false;
- msg();$('#go').hidden=(S.mode==='net'&&!room);$('#go').textContent=(S.mode==='cpu'&&r===true)?'つぎの相手へ！':'もう一回！';
+ msg();setGo((S.mode==='cpu'&&r===true)?'つぎの相手へ！':'もう一回！');$('#go').hidden=true; // 連打中に押してしまわないよう、結果が出るまでボタンは出さない
  if(r==='disconnect')return;
  // 草がちぎれる瞬間の演出
  const win=r===true,P=win?lastP.opp:lastP.me,bp=P?P[P.length>>1]:[W/2,150];
@@ -485,10 +568,34 @@ function showResult(r,rs){
  else if(r===true)note=`🔥 ${save.streak}連勝！`+(save.streak>=save.best&&save.streak>1?' 自己ベスト！':'');
  else if(r===false&&rs.prev>=2)note=`${rs.prev}連勝でストップ…`;
  $('#resNote').textContent=note;
+ buildCard(r);$('#go').hidden=(S.mode==='net'&&!room);$('#go').disabled=true;resAt=performance.now();
  info(sub);
  if(r===true&&S.mode==='cpu')info(`${opp.name}「くっ…まいった！」`);
  else if(r===false&&S.mode==='cpu')info(`${opp.name}「ざんねん！またおいで」`);
 }
+/* ===== リザルトのロック：連打の勢いで「次へ」を押してしまわないように ===== */
+const QUIET=500,MINW=1600; // 最後の入力から0.5秒あく ＋ 結果表示から1.6秒たつまで押せない
+const resultReady=now=>resAt>0&&(now-resAt>8000||(now-resAt>=MINW&&now-lastInputAt>=QUIET));
+function lockUi(now){if(S.state!=='done'||res==='disconnect'||!resAt)return;
+ const ready=resultReady(now),g=$('#go');if(g.disabled===ready)g.disabled=!ready;
+ const quiet=now-lastInputAt,p=ready?1:clamp(Math.min((now-resAt)/MINW,quiet/QUIET),0,1);
+ $('#goFill').style.width=p*100+'%';
+ const lab=ready?goText:(quiet<QUIET?'手を止めてね…':'ちょっと待ってね…');
+ if($('#goLab').textContent!==lab)$('#goLab').textContent=lab}
+function gaugeUi(){$('#gbar').style.width=gauge/GMAX*100+'%';$('#gauge').classList.toggle('full',gauge>=GMAX*.9)}
+function buildCard(r){
+ const dur=Math.max(.1,(endAt-fightAt)/1000),tps=myTaps/dur,win=r===true;
+ const pts=(win?40:0)+Math.min(30,FXS.maxCombo*.6)+Math.min(20,myCrits*2)+Math.min(10,mySp*5),rk=pts>=75?'S':pts>=55?'A':pts>=35?'B':'C';
+ const newC=FXS.maxCombo>save.bc&&FXS.maxCombo>=5,newT=Math.round(tps*10)>save.bt&&myTaps>=10;
+ if(newC)save.bc=FXS.maxCombo;if(newT)save.bt=Math.round(tps*10);if(newC||newT)persist();
+ $('#rank').textContent=rk;$('#rank').dataset.r=rk;
+ const mk=kindOf(me.top),ok=opp&&opp.top?kindOf(opp.top):null;
+ $('#rkTitle').textContent=ok?`${mk.name}型 vs ${ok.name}型`:`${mk.name}型`;
+ $('#rkSub').textContent='ランクは勝ち・コンボ・会心・必殺で決まるよ';
+ const rows=[['総ダメージ',Math.round(dealt*10)],['連打',myTaps+'回'],['連打スピード',tps.toFixed(1)+'回/秒',newT],['最大コンボ',FXS.maxCombo,newC],['会心',myCrits+'回'],['必殺',mySp+'回'],['試合時間',dur.toFixed(1)+'秒'],['ランク点',Math.round(pts)]];
+ const box=$('#rstats');box.textContent='';
+ for(const[a,b,nw]of rows){const d=document.createElement('div'),l=document.createElement('span'),v=document.createElement('b');l.textContent=a;v.textContent=b+(nw?' ★新記録':'');d.append(l,v);if(nw)d.className='new';box.append(d)}
+ $('#resCard').hidden=false}
 function msg(){if(res==='disconnect')info('通信が切れました。対戦を終了しました');}
 
 /* ===== 描画 ===== */
@@ -548,6 +655,7 @@ function drawArena(t){
  if(S.state==='wait'){outlined('あいて待ち'+'.'.repeat((t/400|0)%4),W/2,120,36,'#fff')}
  if(FXS.combo>=2&&S.state==='fight'){const c=FXS.combo,col=c>=30?'#ff5ce1':c>=15?'#ff9a1f':c>=5?'#ffd60a':'#fff',s=1+FXS.comboPop*.35;
   ax.save();ax.translate(14,54);ax.scale(s,s);outlined(String(c),0,0,54,col,'left');outlined('COMBO',0,24,18,col,'left');ax.restore()}
+ if(S.state==='fight'){if(t<rushUntil)outlined('会心ラッシュ！',W/2,255,26,'#ffd60a');else if(t<zoneUntil)outlined('ZONE！',W/2,255,26,'#b48cff')}
  if(cd){const e=clamp((t-cdAt)/260,0,1),sc=1+(1-e)*.9;ax.save();ax.translate(W/2,170);ax.scale(sc,sc);outlined(cd,0,0,cd.length>1?84:110,cd.length>1?'#ffd60a':'#fff');ax.restore()}
 }
 let lastT=performance.now(),lastDock='',lastHeat='';
@@ -559,11 +667,11 @@ function tick(now){
  if(S.state==='fight'){
   if(myHp<=0){if(S.mode==='net'&&room)room.emit('broke',{}).catch(()=>{});finish(false)}
   else if(S.mode==='cpu'&&oppHp<=0)finish(true);
-  if(FXS.combo&&now-FXS.lastTap>430){FXS.combo=0;FXS.fever=false}
+  if(FXS.combo&&now-FXS.lastTap>me.wn*(now<zoneUntil?2:1)){FXS.combo=0;FXS.fever=false}
  }
  const heat=FXS.combo>=30?'3':FXS.combo>=15?'2':FXS.combo>=5?'1':'0';if(heat!==lastHeat){lastHeat=heat;$('#tap').dataset.heat=heat}
  const dk=S.state==='fight'?'f':S.state==='count'?'c':'';if(dk!==lastDock){lastDock=dk;$('#tap').hidden=!dk;$('#tap').disabled=dk!=='f';$('#tap').textContent=dk==='f'?'ひっぱれ！！':'じゅんび…'}
- $('#share').hidden=!(S.state==='done'&&res!=='disconnect');$('#invitebtn').hidden=!(S.mode==='net'&&S.state==='wait'&&!!activeRoomCode);
+ $('#share').hidden=!(S.state==='done'&&res!=='disconnect'&&resultReady(now));lockUi(now);gaugeUi();$('#invitebtn').hidden=!(S.mode==='net'&&S.state==='wait'&&!!activeRoomCode);
  if(me){const f=clamp(myHp/me.hp,0,1);$('#bm').style.width=f*100+'%';$('#hpm').classList.toggle('low',f<.3&&S.state==='fight')}
  const of=opp?clamp(oppHp/opp.hp,0,1):1;$('#bo').style.width=of*100+'%';$('#hpo').classList.toggle('low',of<.3&&S.state==='fight');
  const fl=$('#flash');fl.style.opacity=FXS.flash;fl.style.background=FXS.flashCol;
@@ -618,7 +726,7 @@ function makeRoomAdapter(conn){
 function attachConnection(conn){
  if(activeConn&&activeConn!==conn){conn.close();return}
  activeConn=conn;expectedPeer=conn.peer;pendingConnections.delete(conn.peer);room=makeRoomAdapter(conn);
- unsubs=[room.on('hello',onHello),room.on('ready',onReady),room.on('tap',onTap),room.on('broke',onBroke)];
+ unsubs=[room.on('hello',onHello),room.on('ready',onReady),room.on('tap',onTap),room.on('sp',onSp),room.on('broke',onBroke)];
  const opened=()=>{if(activeConn!==conn)return;clearTimeout(connTimer);info('接続しました。草の状態を交換しています…');sendHello()};
  conn.on('open',opened);conn.on('close',()=>{if(activeConn!==conn)return;activeConn=null;room=null;unsubs=[];clearInterval(sendT);if(S.state==='fight')finish('disconnect');else if(S.state==='done')$('#go').hidden=true;else if(S.mode==='net'){S.state='wait';$('#go').hidden=true;info('相手との接続が切れました。戻って再接続してください')}});
  conn.on('error',e=>{console.warn('DataConnection:',e);if(S.state!=='done')info('通信エラーが発生しました')});
@@ -633,19 +741,26 @@ function connectToOpponent(remotePeerId){
  else info('相手からの接続を待っています…');
 }
 function validPeerId(s){return typeof s==='string'&&/^[a-zA-Z0-9_-]{4,128}$/.test(s)}
-function sendHello(){if(room&&me)room.emit('hello',{p:me.p,w:me.w,hp:me.hp,pw:me.pw,sk:save.skin}).catch(()=>{})}
+function sendHello(){if(room&&me)room.emit('hello',{p:me.p,w:me.w,hp:me.hp,pw:me.pw,ar:me.ar,cc:me.cc,cm:me.cm,wn:me.wn,cb:me.cb,tp:me.top,sk:save.skin}).catch(()=>{})}
 function onHello(m){if(m.isMe||(opp&&opp.peer!==m.peer))return;const d=m.data||{};
  if(!Array.isArray(d.p)||d.p.length<2||d.p.length>100||!['wait','ready','done'].includes(S.state))return;
  const first=S.state==='wait';
- opp={peer:m.peer,p:d.p.map(a=>[clamp(+a[0]||0,0,1000),clamp(+a[1]||0,0,1000)]),w:clamp(+d.w||6,2,16),hp:clamp(+d.hp||80,20,200),pw:clamp(+d.pw||10,3,25),sk:SKINS.some(s=>s.id===d.sk)?d.sk:'green',name:'あいて'};
- if(first){S.state='ready';prepare();$('#go').hidden=false;$('#go').textContent='準備OK';info('相手が来ました！準備OKを押してね');SFX.ui()}else if(S.state==='ready'){oppHp=opp.hp}}
+ opp={peer:m.peer,p:d.p.map(a=>[clamp(+a[0]||0,0,1000),clamp(+a[1]||0,0,1000)]),w:clamp(+d.w||6,2,16),hp:clamp(+d.hp||80,20,400),pw:clamp(+d.pw||10,3,60),ar:clamp(+d.ar||0,0,2),cc:clamp(+d.cc||.1,0,.9),cm:clamp(+d.cm||2,1,5),wn:clamp(+d.wn||430,200,1000),cb:clamp(+d.cb||.0125,0,.2),top:KINDS.some(k=>k.id===d.tp)?d.tp:'hp',sk:SKINS.some(s=>s.id===d.sk)?d.sk:'green',name:'あいて'};
+ if(first){S.state='ready';prepare();$('#go').hidden=false;setGo('準備OK');info('相手が来ました！準備OKを押してね');SFX.ui()}else if(S.state==='ready'){oppHp=opp.hp}}
 function onReady(m){if(m.isMe||!opp||m.peer!==opp.peer)return;readyOpp=true;maybeStart()}
 // 相手の連打：回数(c)と累計ダメージ(d)を受け取る。dは1回の受信で増やせる量に上限をつけて極端な値を弾く
 function onTap(m){if(m.isMe||!opp||m.peer!==opp.peer)return;
  const dd=m.data||{},c=+dd.c||0,n=clamp(c-oppC,0,30);oppC=c;if(S.state!=='fight')return;
+ if(Number.isFinite(+dd.h))oppHp=clamp(+dd.h,0,opp.hp); // 相手のHPは相手の申告に合わせる（回復・軽減ぶんのずれを直す）
+ const k=Math.max(0,Math.floor(+dd.k||0)),crit=k>oppK;oppK=k;
+ const mx=opp.pw*K*(1+80*opp.cb)*opp.cm; // 1タップの最大＝ゾーン中のコンボ×会心
  let dmg;
- if(Number.isFinite(+dd.d)){const d=clamp(+dd.d,0,1e5);dmg=clamp(d-oppD,0,n*opp.pw*K*3);oppD=d}else dmg=n*opp.pw*K; // 1タップの最大は クリティカル2倍×コンボ1.5倍=3倍
- if(n>0)takeHit(dmg,n,n===1&&dmg>opp.pw*K*1.75)}
+ if(Number.isFinite(+dd.d)){const d=clamp(+dd.d,0,1e5);dmg=clamp(d-oppD,0,n*mx);oppD=d}else dmg=n*opp.pw*K;
+ if(n>0)takeHit(dmg,n,crit)}
+function onSp(m){if(m.isMe||!opp||m.peer!==opp.peer||S.state!=='fight')return;
+ const d=m.data||{},k=KINDS.some(x=>x.id===d.k)?d.k:opp.top,now=performance.now();if(now-lastOppSp<1500)return;lastOppSp=now;
+ specialFx(false,k);
+ if(k==='pw'){const dd=clamp(+d.d||0,0,opp.pw*K*9*1.05);if(dd>0)takeHit(dd,3,true)}}
 function onBroke(m){if(m.isMe||!opp||m.peer!==opp.peer)return;
  if(S.state==='fight')finish(true);
  else if(S.state==='done'&&res===false){ // ほぼ同時に両方切れた＝あいこ。さっき数えた負けを取り消す
@@ -712,7 +827,7 @@ $('#joinInv').onclick=()=>{if(!inviteCode)return;const c=inviteCode;inviteCode='
 $('#random').onclick=()=>startSearch('random');
 $('#net').onclick=()=>{const code=$('#code').value.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,12);if(code.length<2){stat('部屋コードは2文字以上にしてね');return}startSearch('room',code)};
 $('#cpu').onclick=async()=>{await clean();S.mode='cpu';startCpu()};
-$('#go').onclick=()=>{$('#go').hidden=true;hideResult();
+$('#go').onclick=()=>{if(S.state==='done'&&!resultReady(performance.now()))return;$('#go').hidden=true;hideResult();
  if(S.mode==='cpu'){startCpu();return}
  if(!room){info('通信が切れています。対戦をやめて入り直してください');return}
  readyMe=true;room.emit('ready',{}).catch(()=>{});info('相手の準備を待っています…');maybeStart()};
@@ -720,7 +835,11 @@ $('#go').onclick=()=>{$('#go').hidden=true;hideResult();
 const tapDown=e=>{e.preventDefault();myTap()};
 $('#tap').onpointerdown=tapDown;$('#stage').onpointerdown=tapDown;$('#tap').oncontextmenu=e=>e.preventDefault();
 addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&S.state==='fight'){e.preventDefault();if(!e.repeat)myTap()}});
-$('#back').onclick=async()=>{await clean();show('draw');stat();renderMeta()};
+addEventListener('pointerdown',()=>{lastInputAt=performance.now()},true);addEventListener('keydown',()=>{lastInputAt=performance.now()},true);
+$('#back').onclick=async()=>{const now=performance.now();
+ if(S.state==='fight'||S.state==='count'){if(now-backAt>2500){backAt=now;toast('対戦中だよ！もう一回押すとやめるよ');return}}
+ else if(S.state==='done'&&res!=='disconnect'&&!resultReady(now))return; // 結果が出てしばらくは押せない
+ await clean();show('draw');stat();renderMeta()};
 addEventListener('beforeunload',()=>{if(peerId){const payload=JSON.stringify({action:'leave',sessionId,roomCode:activeRoomCode});try{navigator.sendBeacon('/api/match',new Blob([payload],{type:'application/json'}))}catch(e){}}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;heartbeat();
  if(peerClient&&peerId&&peerClient.disconnected&&!peerClient.destroyed){try{peerClient.reconnect()}catch(e){console.warn(e)}}
