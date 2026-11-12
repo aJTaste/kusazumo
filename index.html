@@ -835,7 +835,9 @@ $('#go').onclick=()=>{if(S.state==='done'&&!resultReady(performance.now()))retur
 const tapDown=e=>{e.preventDefault();myTap()};
 $('#tap').onpointerdown=tapDown;$('#stage').onpointerdown=tapDown;$('#tap').oncontextmenu=e=>e.preventDefault();
 addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&S.state==='fight'){e.preventDefault();if(!e.repeat)myTap()}});
-addEventListener('pointerdown',()=>{lastInputAt=performance.now()},true);addEventListener('keydown',()=>{lastInputAt=performance.now()},true);
+// 連打の検知。ただし「押せる状態の次へ／やめる／シェア」を押す操作は連打に数えない（数えるとその直後のクリックが弾かれる）
+const noteInput=e=>{const now=performance.now(),b=e.target&&e.target.closest&&e.target.closest('#go,#back,#share');if(b&&!b.disabled&&S.state==='done'&&resultReady(now))return;lastInputAt=now};
+addEventListener('pointerdown',noteInput,true);addEventListener('keydown',noteInput,true);
 $('#back').onclick=async()=>{const now=performance.now();
  if(S.state==='fight'||S.state==='count'){if(now-backAt>2500){backAt=now;toast('対戦中だよ！もう一回押すとやめるよ');return}}
  else if(S.state==='done'&&res!=='disconnect'&&!resultReady(now))return; // 結果が出てしばらくは押せない
