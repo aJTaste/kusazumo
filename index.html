@@ -80,9 +80,6 @@ input[type=range]{accent-color:var(--grass-d);flex:1;min-width:120px}
 .rstats{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin:10px 0 0;font:700 14px/1.5 var(--body)}
 .rstats div{display:flex;justify-content:space-between;border-bottom:2px dotted #b8c8b0}.rstats b{font-family:var(--disp);font-weight:400}
 .rstats .new b{color:#ff3d5a}
-#go{position:relative;overflow:hidden}
-#go .fill{position:absolute;inset:0 auto 0 0;width:0;background:rgba(255,255,255,.45);pointer-events:none}
-#go .lab{position:relative}
 .hud{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end}
 .nm{display:flex;gap:6px;align-items:center;font:400 14px/1.6 var(--disp);min-width:0}
 .side.opp .nm{justify-content:flex-end}
@@ -192,7 +189,7 @@ body.inmatch .top{justify-content:flex-end}
  </div>
  <div class="dock">
   <button id="tap" class="tapbtn" type="button" hidden disabled>じゅんび…</button>
-  <button id="go" class="btn pri big" type="button" hidden><span id="goFill" class="fill"></span><span id="goLab" class="lab">準備OK</span></button>
+  <button id="go" class="btn pri big" type="button" hidden>準備OK</button>
  </div>
  <div class="under">
   <button id="share" class="btn gold" type="button" hidden>結果をシェア</button>
@@ -363,7 +360,7 @@ let peerClient=null,peerId='',room=null,activeConn=null,expectedPeer='',pendingC
 let cpuT=0,sendT=0,hbTimer=0,matchTimer=0,searchMode=null,searchBusy=false,searchDeadline=0,activeRoomCode='';
 let peerTry=0,peerOpenTimer=0,peerRetryTimer=0,connTimer=0,lastSearch=null,matchRetry=0;
 let lossRun=0,resultTimer=0,lastSettle=null,lastP={me:null,opp:null},lastOppFx=0,readyMe=false,readyOpp=false;
-let gauge=0,myCrits=0,mySp=0,dealt=0,oppK=0,sentH=-1,rushUntil=0,zoneUntil=0,fightAt=0,resAt=0,lastInputAt=0,lastOppSp=-1e9,backAt=0,goText='準備OK';
+let gauge=0,myCrits=0,mySp=0,dealt=0,oppK=0,sentH=-1,rushUntil=0,zoneUntil=0,fightAt=0,lastOppSp=-1e9,backAt=0;
 const sessionId=(crypto.randomUUID?crypto.randomUUID():('s_'+Math.random().toString(36).slice(2)+Date.now().toString(36)));
 $('#code').value=Math.random().toString(36).slice(2,6);
 // ?room=xxxx 付きURLで開いた＝友達からの招待
@@ -452,10 +449,10 @@ function makeCpu(){
 function show(id){['draw','match'].forEach(i=>$('#'+i).hidden=i!==id);document.body.classList.toggle('inmatch',id==='match');scrollTo(0,0)}
 const info=t=>$('#info').textContent=t;
 const oppSkin=()=>skinOf(opp&&opp.sk);
-function hideResult(){clearTimeout(resultTimer);$('#result').hidden=true;$('#resCard').hidden=true;resAt=0}
-function setGo(t){goText=t;$('#goLab').textContent=t}
+function hideResult(){clearTimeout(resultTimer);$('#result').hidden=true;$('#resCard').hidden=true}
+function setGo(t){$('#go').textContent=t}
 function setTags(){const m=me&&kindOf(me.top),o=opp&&opp.top&&kindOf(opp.top);$('#meTag').textContent=m?m.name+'型':'';$('#oppTag').textContent=o?o.name+'型':''}
-function prepare(){myHp=me.hp;oppHp=opp?opp.hp:1;myTaps=oppC=sent=0;myDmg=oppD=0;tension=0;res=null;lastP={me:null,opp:null};resetFx();hideResult();info('');gauge=myCrits=mySp=dealt=oppK=0;sentH=-1;rushUntil=zoneUntil=0;$('#go').disabled=false;$('#goFill').style.width='0';setTags();
+function prepare(){myHp=me.hp;oppHp=opp?opp.hp:1;myTaps=oppC=sent=0;myDmg=oppD=0;tension=0;res=null;lastP={me:null,opp:null};resetFx();hideResult();info('');gauge=myCrits=mySp=dealt=oppK=0;sentH=-1;rushUntil=zoneUntil=0;setTags();
  $('#oppName').textContent=opp&&opp.name?opp.name:'あいて';$('#meDot').style.background=dotBg(mySkin());$('#oppDot').style.background=opp?dotBg(oppSkin()):'#fff'}
 function beginCount(){S.state='count';let n=3;cd='3';cdAt=performance.now();SFX.count();
  if(me&&opp&&opp.top){const a=kindOf(me.top),b=kindOf(opp.top);popText(a.name+'型',150,60,{size:32,col:'#fff',life:2,vy:0});popText(b.name+'型',W-150,60,{size:32,col:b.col,life:2,vy:0})}
@@ -528,7 +525,7 @@ function myTap(){
 /* ===== 決着・経験値・結果 ===== */
 function finish(r){
  if(S.state==='done')return;S.state='done';res=r;endAt=performance.now();clearInterval(cpuT);clearInterval(sendT);FXS.fever=false;
- msg();setGo((S.mode==='cpu'&&r===true)?'つぎの相手へ！':'もう一回！');$('#go').hidden=true; // 連打中に押してしまわないよう、結果が出るまでボタンは出さない
+ msg();setGo((S.mode==='cpu'&&r===true)?'つぎの相手へ！':'もう一回！');$('#go').hidden=true; // 次へボタンは結果カードと一緒に出す
  if(r==='disconnect')return;
  // 草がちぎれる瞬間の演出
  const win=r===true,P=win?lastP.opp:lastP.me,bp=P?P[P.length>>1]:[W/2,150];
@@ -568,20 +565,11 @@ function showResult(r,rs){
  else if(r===true)note=`🔥 ${save.streak}連勝！`+(save.streak>=save.best&&save.streak>1?' 自己ベスト！':'');
  else if(r===false&&rs.prev>=2)note=`${rs.prev}連勝でストップ…`;
  $('#resNote').textContent=note;
- buildCard(r);$('#go').hidden=(S.mode==='net'&&!room);$('#go').disabled=true;resAt=performance.now();
+ buildCard(r);$('#go').hidden=(S.mode==='net'&&!room);
  info(sub);
  if(r===true&&S.mode==='cpu')info(`${opp.name}「くっ…まいった！」`);
  else if(r===false&&S.mode==='cpu')info(`${opp.name}「ざんねん！またおいで」`);
 }
-/* ===== リザルトのロック：連打の勢いで「次へ」を押してしまわないように ===== */
-const QUIET=500,MINW=1600; // 最後の入力から0.5秒あく ＋ 結果表示から1.6秒たつまで押せない
-const resultReady=now=>resAt>0&&(now-resAt>8000||(now-resAt>=MINW&&now-lastInputAt>=QUIET));
-function lockUi(now){if(S.state!=='done'||res==='disconnect'||!resAt)return;
- const ready=resultReady(now),g=$('#go');if(g.disabled===ready)g.disabled=!ready;
- const quiet=now-lastInputAt,p=ready?1:clamp(Math.min((now-resAt)/MINW,quiet/QUIET),0,1);
- $('#goFill').style.width=p*100+'%';
- const lab=ready?goText:(quiet<QUIET?'手を止めてね…':'ちょっと待ってね…');
- if($('#goLab').textContent!==lab)$('#goLab').textContent=lab}
 function gaugeUi(){$('#gbar').style.width=gauge/GMAX*100+'%';$('#gauge').classList.toggle('full',gauge>=GMAX*.9)}
 function buildCard(r){
  const dur=Math.max(.1,(endAt-fightAt)/1000),tps=myTaps/dur,win=r===true;
@@ -671,7 +659,7 @@ function tick(now){
  }
  const heat=FXS.combo>=30?'3':FXS.combo>=15?'2':FXS.combo>=5?'1':'0';if(heat!==lastHeat){lastHeat=heat;$('#tap').dataset.heat=heat}
  const dk=S.state==='fight'?'f':S.state==='count'?'c':'';if(dk!==lastDock){lastDock=dk;$('#tap').hidden=!dk;$('#tap').disabled=dk!=='f';$('#tap').textContent=dk==='f'?'ひっぱれ！！':'じゅんび…'}
- $('#share').hidden=!(S.state==='done'&&res!=='disconnect'&&resultReady(now));lockUi(now);gaugeUi();$('#invitebtn').hidden=!(S.mode==='net'&&S.state==='wait'&&!!activeRoomCode);
+ $('#share').hidden=!(S.state==='done'&&res!=='disconnect');gaugeUi();$('#invitebtn').hidden=!(S.mode==='net'&&S.state==='wait'&&!!activeRoomCode);
  if(me){const f=clamp(myHp/me.hp,0,1);$('#bm').style.width=f*100+'%';$('#hpm').classList.toggle('low',f<.3&&S.state==='fight')}
  const of=opp?clamp(oppHp/opp.hp,0,1):1;$('#bo').style.width=of*100+'%';$('#hpo').classList.toggle('low',of<.3&&S.state==='fight');
  const fl=$('#flash');fl.style.opacity=FXS.flash;fl.style.background=FXS.flashCol;
@@ -827,7 +815,7 @@ $('#joinInv').onclick=()=>{if(!inviteCode)return;const c=inviteCode;inviteCode='
 $('#random').onclick=()=>startSearch('random');
 $('#net').onclick=()=>{const code=$('#code').value.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,12);if(code.length<2){stat('部屋コードは2文字以上にしてね');return}startSearch('room',code)};
 $('#cpu').onclick=async()=>{await clean();S.mode='cpu';startCpu()};
-$('#go').onclick=()=>{if(S.state==='done'&&!resultReady(performance.now()))return;$('#go').hidden=true;hideResult();
+$('#go').onclick=()=>{$('#go').hidden=true;hideResult();
  if(S.mode==='cpu'){startCpu();return}
  if(!room){info('通信が切れています。対戦をやめて入り直してください');return}
  readyMe=true;room.emit('ready',{}).catch(()=>{});info('相手の準備を待っています…');maybeStart()};
@@ -835,12 +823,8 @@ $('#go').onclick=()=>{if(S.state==='done'&&!resultReady(performance.now()))retur
 const tapDown=e=>{e.preventDefault();myTap()};
 $('#tap').onpointerdown=tapDown;$('#stage').onpointerdown=tapDown;$('#tap').oncontextmenu=e=>e.preventDefault();
 addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&S.state==='fight'){e.preventDefault();if(!e.repeat)myTap()}});
-// 連打の検知。ただし「押せる状態の次へ／やめる／シェア」を押す操作は連打に数えない（数えるとその直後のクリックが弾かれる）
-const noteInput=e=>{const now=performance.now(),b=e.target&&e.target.closest&&e.target.closest('#go,#back,#share');if(b&&!b.disabled&&S.state==='done'&&resultReady(now))return;lastInputAt=now};
-addEventListener('pointerdown',noteInput,true);addEventListener('keydown',noteInput,true);
 $('#back').onclick=async()=>{const now=performance.now();
  if(S.state==='fight'||S.state==='count'){if(now-backAt>2500){backAt=now;toast('対戦中だよ！もう一回押すとやめるよ');return}}
- else if(S.state==='done'&&res!=='disconnect'&&!resultReady(now))return; // 結果が出てしばらくは押せない
  await clean();show('draw');stat();renderMeta()};
 addEventListener('beforeunload',()=>{if(peerId){const payload=JSON.stringify({action:'leave',sessionId,roomCode:activeRoomCode});try{navigator.sendBeacon('/api/match',new Blob([payload],{type:'application/json'}))}catch(e){}}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;heartbeat();
